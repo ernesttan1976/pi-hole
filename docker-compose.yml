@@ -1,0 +1,44 @@
+version: '3'
+
+services:
+  pihole:
+    container_name: pihole
+    image: pihole/pihole:latest
+    ports:
+      - "53:53/tcp"
+      - "53:53/udp"
+      - "67:67/udp"
+      - "80:80/tcp"
+      - "443:443/tcp"
+      - "4711:4711/tcp"  # Expose the telnet API port
+    environment:
+      TZ: 'Asia/Singapore'
+      WEBPASSWORD: 'raid2024'
+      DNSMASQ_LISTENING: 'all'
+      API_EXCLUDE_DOMAINS: ''
+      API_EXCLUDE_CLIENTS: ''
+      API_QUERY_LOG_SHOW: 'all'
+      PIHOLE_DNS_LOGGING: 'true'  # Enable full query logging
+    volumes:
+      - './etc-pihole:/etc/pihole'
+      - './etc-dnsmasq.d:/etc/dnsmasq.d'
+    cap_add:
+      - NET_ADMIN
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "dig", "@127.0.0.1", "pi.hole"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  pihole-telegram-notifier:
+    build:
+      context: .
+      dockerfile: Dockerfile-notifier
+    depends_on:
+      pihole:
+        condition: service_healthy
+    env_file:
+      - .env
+    restart: unless-stopped
+    network_mode: "service:pihole"  # Use the same network as pihole
